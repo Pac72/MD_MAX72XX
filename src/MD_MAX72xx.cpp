@@ -45,6 +45,28 @@ _hardwareSPI(true), _updateEnabled(true)
   setModuleParameters(mod);
 }
 
+MD_MAX72XX::MD_MAX72XX(MD_MAX72XX_Cfg cfg, uint8_t dataPin, uint8_t clkPin, uint8_t csPin, uint8_t numDevices):
+  _dataPin(dataPin), _clkPin(clkPin), _csPin(csPin), _maxDevices(numDevices),
+  _hardwareSPI(false), _updateEnabled(true)
+{
+  setModuleParameters(cfg);
+}
+
+MD_MAX72XX::MD_MAX72XX(MD_MAX72XX_Cfg cfg, uint8_t csPin, uint8_t numDevices):
+  _dataPin(0), _clkPin(0), _csPin(csPin), _maxDevices(numDevices),
+  _hardwareSPI(true), _updateEnabled(true)
+{
+  setModuleParameters(cfg);
+}
+
+void MD_MAX72XX::setModuleParameters(MD_MAX72XX_Cfg cfg)
+{
+  _hwDigRows = cfg.DigitMapping() == MD_MAX72XX_Cfg::DM_DIGIT_ON_ROWS;
+  _hwRevCols = cfg.ColumnOrder() == MD_MAX72XX_Cfg::CO_ZERO_LEFT;
+  _hwRevRows = cfg.RowOrder() == MD_MAX72XX_Cfg::RO_ZERO_BOTTOM;
+  _hwRevDevices = cfg.DeviceOrder() == MD_MAX72XX_Cfg::DO_ZERO_RIGHT;
+}
+
 void MD_MAX72XX::setModuleParameters(moduleType_t mod)
 // Combinations not listed here have probably not been tested and may
 // not operate correctly.

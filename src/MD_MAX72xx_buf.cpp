@@ -265,8 +265,14 @@ bool MD_MAX72XX::transformBuffer(uint8_t buf, transformType_t ttype)
       }
       else
       {
-        for (uint8_t i=ROW_SIZE; i>0; --i)
-          _matrix[buf].dig[i] = _matrix[buf].dig[i-1];
+        if (_hwRevRows)
+        {
+          for (uint8_t i=ROW_SIZE; i>0; --i)
+            _matrix[buf].dig[i] = _matrix[buf].dig[i-1];
+        } else {
+          for (uint8_t i=0; i<ROW_SIZE; i++)
+            _matrix[buf].dig[i] = _matrix[buf].dig[i+1];
+        }
       }
       break;
 

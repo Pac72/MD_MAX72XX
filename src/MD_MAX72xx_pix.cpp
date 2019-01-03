@@ -149,10 +149,68 @@ bool MD_MAX72XX::setRow(uint8_t startDev, uint8_t endDev, uint8_t r, uint8_t val
   return(true);
 }
 
+void MD_MAX72XX::transformDecDev(uint8_t startDev, uint8_t endDev, transformType_t ttype)
+{
+  uint8_t colData;
+
+  colData = 0;
+  // if we can call the user function later then we don't need to do anything here
+  // however, wraparound mode means we know the data so no need to request from the
+  // callback at all - just save it for later
+  if (_wrapAround)
+    colData = getColumn(((endDev+1)*COL_SIZE)-1);
+  else if (_cbShiftDataOut != NULL)
+    (*_cbShiftDataOut)(endDev, ttype, getColumn(((endDev+1)*COL_SIZE)-1));
+
+  // shift all the buffers along
+  for (int8_t buf = endDev; buf >= startDev; --buf)
+  {
+    transformBuffer(buf, ttype);
+    // handle the boundary condition
+    setColumn(buf, 0, getColumn(buf-1, COL_SIZE-1));
+  }
+
+  // if we have a callback function, now is the time to get the data if we are
+  // not in wraparound mode
+  if (_cbShiftDataIn != NULL && !_wrapAround)
+    colData = (*_cbShiftDataIn)(startDev, ttype);
+
+  setColumn((startDev*COL_SIZE), colData);
+}
+
+void MD_MAX72XX::transformIncDev(uint8_t startDev, uint8_t endDev, transformType_t ttype)
+{
+  uint8_t colData;
+
+  // if we can call the user function later then we don't need to do anything here
+  // however, wraparound mode means we know the data so no need to request from the
+  // callback at all - just save it for later.
+  colData = 0;
+  if (_wrapAround)
+    colData = getColumn(startDev*COL_SIZE);
+  else if (_cbShiftDataOut != NULL)
+    (*_cbShiftDataOut)(startDev, ttype, getColumn((startDev*COL_SIZE)));
+
+  // shift all the buffers along
+  for (uint8_t buf=startDev; buf<=endDev; buf++)
+  {
+    transformBuffer(buf, ttype);
+
+    // handle the boundary condition
+    setColumn(buf, COL_SIZE-1, getColumn(buf+1, 0));
+  }
+
+  // if we have a callback function, now is the time to get the data if we are
+  // not in wraparound mode
+  if (_cbShiftDataIn != NULL && !_wrapAround)
+    colData = (*_cbShiftDataIn)(endDev, ttype);
+
+  setColumn(((endDev+1)*COL_SIZE)-1, colData);
+}
+
 bool MD_MAX72XX::transform(uint8_t startDev, uint8_t endDev, transformType_t ttype)
 {
  // uint8_t t[ROW_SIZE];
-  uint8_t colData;
   bool b = _updateEnabled;
 
   if (endDev < startDev) return(false);
@@ -162,57 +220,22 @@ bool MD_MAX72XX::transform(uint8_t startDev, uint8_t endDev, transformType_t tty
   switch (ttype)
   {
     case TSL: // Transform Shift Left one pixel element (with overflow)
-    colData = 0;
-    // if we can call the user function later then we don't need to do anything here
-    // however, wraparound mode means we know the data so no need to request from the
-    // callback at all - just save it for later
-    if (_wrapAround)
-      colData = getColumn(((endDev+1)*COL_SIZE)-1);
-    else if (_cbShiftDataOut != NULL)
-      (*_cbShiftDataOut)(endDev, ttype, getColumn(((endDev+1)*COL_SIZE)-1));
-
-    // shift all the buffers along
-    for (int8_t buf = endDev; buf >= startDev; --buf)
-    {
-      transformBuffer(buf, ttype);
-      // handle the boundary condition
-      setColumn(buf, 0, getColumn(buf-1, COL_SIZE-1));
-    }
-
-    // if we have a callback function, now is the time to get the data if we are
-    // not in wraparound mode
-    if (_cbShiftDataIn != NULL && !_wrapAround)
-      colData = (*_cbShiftDataIn)(startDev, ttype);
-
-    setColumn((startDev*COL_SIZE), colData);
-    break;
+      if (_hwRevDevices)
+      {
+        transformIncDev(startDev, endDev, ttype);
+      } else {
+        transformDecDev(startDev, endDev, ttype);
+      }
+      break;
 
     case TSR: // Transform Shift Right one pixel element (with overflow)
-    // if we can call the user function later then we don't need to do anything here
-    // however, wraparound mode means we know the data so no need to request from the
-    // callback at all - just save it for later.
-    colData = 0;
-    if (_wrapAround)
-      colData = getColumn(startDev*COL_SIZE);
-    else if (_cbShiftDataOut != NULL)
-      (*_cbShiftDataOut)(startDev, ttype, getColumn((startDev*COL_SIZE)));
-
-    // shift all the buffers along
-    for (uint8_t buf=startDev; buf<=endDev; buf++)
-    {
-      transformBuffer(buf, ttype);
-
-      // handle the boundary condition
-      setColumn(buf, COL_SIZE-1, getColumn(buf+1, 0));
-    }
-
-    // if we have a callback function, now is the time to get the data if we are
-    // not in wraparound mode
-    if (_cbShiftDataIn != NULL && !_wrapAround)
-      colData = (*_cbShiftDataIn)(endDev, ttype);
-
-    setColumn(((endDev+1)*COL_SIZE)-1, colData);
-    break;
+      if (_hwRevDevices)
+      {
+        transformDecDev(startDev, endDev, ttype);
+      } else {
+        transformIncDev(startDev, endDev, ttype);
+      }
+      break;
 
     case TFLR: // Transform Flip Left to Right (use the whole field)
     // first reverse the device buffers end for end

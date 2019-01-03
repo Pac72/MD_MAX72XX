@@ -252,6 +252,48 @@ enough current for the number of connected modules.
 #define MAX_INTENSITY 0xf ///< The maximum intensity value that can be set for a LED array
 #define MAX_SCANLIMIT 7   ///< The maximum scan limit value that can be set for the devices
 
+class MD_MAX72XX_Cfg {
+public:
+  enum digitMapping_t
+  {
+    DM_DIGIT_ON_COLS,
+    DM_DIGIT_ON_ROWS
+  };
+
+  enum columnOrder_t
+  {
+    CO_ZERO_LEFT,
+    CO_ZERO_RIGHT
+  };
+
+  enum rowOrder_t
+  {
+    RO_ZERO_TOP,
+    RO_ZERO_BOTTOM
+  };
+
+  enum deviceOrder_t
+  {
+    DO_ZERO_LEFT,
+    DO_ZERO_RIGHT
+  };
+
+  MD_MAX72XX_Cfg(digitMapping_t digitMapping, columnOrder_t columnOrder,
+      rowOrder_t rowOrder, deviceOrder_t deviceOrder) :
+    _digitMapping(digitMapping), _columnOrder(columnOrder), _rowOrder(rowOrder), _deviceOrder(deviceOrder) { }
+
+  inline digitMapping_t DigitMapping() const { return _digitMapping; }
+  inline columnOrder_t ColumnOrder() const { return _columnOrder; }
+  inline rowOrder_t RowOrder() const { return _rowOrder; }
+  inline deviceOrder_t DeviceOrder() const { return _deviceOrder; }
+
+private:
+  digitMapping_t _digitMapping; // MAX72xx digit mapping (on rows / on cols)
+  columnOrder_t  _columnOrder;  // column order in device (col 0 on the right / on the left)
+  rowOrder_t     _rowOrder;     // row order in device (row 0 on top / on bottom)
+  deviceOrder_t  _deviceOrder;  // device order (device 0 on the left / on the right)
+};
+
 /**
  * Core object for the MD_MAX72XX library
  */
@@ -346,6 +388,40 @@ public:
    *                    on this parameter.
    */
   MD_MAX72XX(moduleType_t mod, uint8_t dataPin, uint8_t clkPin, uint8_t csPin, uint8_t numDevices=1);
+
+  /**
+   * Class Constructor - SPI hardware interface.
+   *
+   * Instantiate a new instance of the class. The parameters passed are used to
+   * connect the software to the hardware. Multiple instances may co-exist
+   * but they should not share the same hardware CS pin (SPI interface).
+   * The dataPin and the clockPin are defined by the Arduino hardware definition
+   * (SPI MOSI and SCK signals).
+   *
+   * \param cfg     full configuration of the device(s)
+   * \param csPin   output for selecting the device.
+   * \param numDevices  number of devices connected. Default is 1 if not supplied.
+   *                    Memory for device buffers is dynamically allocated based
+   *                    on this parameter.
+   */
+  MD_MAX72XX(MD_MAX72XX_Cfg cfg, uint8_t csPin, uint8_t numDevices=1);
+
+  /**
+   * Class Constructor - arbitrary digital interface.
+   *
+   * Instantiate a new instance of the class. The parameters passed are used to
+   * connect the software to the hardware. Multiple instances may co-exist
+   * but they should not share the same hardware CS pin (SPI interface).
+   *
+   * \param cfg       full configuration of the device(s)
+   * \param dataPin   output on the Arduino where data gets shifted out.
+   * \param clkPin    output for the clock signal.
+   * \param csPin     output for selecting the device.
+   * \param numDevices  number of devices connected. Default is 1 if not supplied.
+   *                    Memory for device buffers is dynamically allocated based
+   *                    on this parameter.
+   */
+  MD_MAX72XX(MD_MAX72XX_Cfg cfg, uint8_t dataPin, uint8_t clkPin, uint8_t csPin, uint8_t numDevices=1);
 
   /**
    * Class Constructor - SPI hardware interface.
@@ -910,6 +986,7 @@ private:
   bool _hwDigRows;    // MAX72xx digits are mapped to rows in on the matrix
   bool _hwRevCols;    // Normal orientation is col 0 on the right. Set to true if reversed
   bool _hwRevRows;    // Normal orientation is row 0 at the top. Set to true if reversed
+  bool _hwRevDevices; // Normally leftmost device is 0. Set to true if reversed
 
   // SPI interface data
   uint8_t _dataPin;     // DATA is shifted out of this pin ...
@@ -968,6 +1045,7 @@ private:
   bool copyColumn(uint8_t buf, uint8_t cSrc, uint8_t cDest);// copy a row from Src to Dest
 
   void setModuleParameters(moduleType_t mod);   // setup parameters based on module type
+  void setModuleParameters(MD_MAX72XX_Cfg cfg);  // setup parameters based on full configuration
 
   // _hwDigRev switched function for internal use
   bool copyC(uint8_t buf, uint8_t cSrc, uint8_t cDest);
@@ -977,6 +1055,8 @@ private:
   bool setC(uint8_t buf, uint8_t c, uint8_t value);
   bool setR(uint8_t buf, uint8_t r, uint8_t value);
 
+  void transformDecDev(uint8_t startDev, uint8_t endDev, transformType_t ttype);
+  void transformIncDev(uint8_t startDev, uint8_t endDev, transformType_t ttype);
 };
 
 #endif
